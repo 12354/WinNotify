@@ -1,0 +1,72 @@
+name: Build and Release WinNotify
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Publish application
+      run: dotnet publish -p:PublishProfile=Properties\PublishProfiles\PublishSingleFile.pubxml -c Release
+      
+    - name: Get version from tag
+      id: get_version
+      run: |
+        if ("${{ github.ref }}" -like "refs/tags/v*") {
+          $version = "${{ github.ref }}".Replace("refs/tags/", "")
+        } else {
+          $version = "v1.0.0-dev"
+        }
+        echo "version=$version" >> $env:GITHUB_OUTPUT
+      shell: pwsh
+      
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_version.outputs.version }}
+        release_name: WinNotify ${{ steps.get_version.outputs.version }}
+        body: |
+          ## WinNotify Release ${{ steps.get_version.outputs.version }}
+          
+          Windows CLI tool for creating toast notifications.
+          
+          ### Usage
+          ```bash
+          WinNotify.exe -m "Hello from WinNotify!"
+          WinNotify.exe -t "Custom Title" -m "Your message here" -i "path/to/image.jpg"
+          ```
+          
+          ### Requirements
+          - Windows 10/11
+          - No additional runtime required (self-contained)
+        draft: false
+        prerelease: false
+        
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./bin/Release/net8.0-windows10.0.19041.0/win-x64/publish/WinNotify.exe
+        asset_name: WinNotify.exe
+        asset_content_type: application/octet-stream

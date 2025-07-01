@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "WinNotify": {
+      "commandName": "Project",
+      "commandLineArgs": "-m \"test\""
+    }
+  }
+}
